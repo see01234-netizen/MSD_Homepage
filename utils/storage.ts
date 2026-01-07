@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: SiteConfig = {
   companyName: "(주)미래공간개발",
   heroTitle: "THE ULTIMATE PARTNER OF REAL ESTATE DEVELOPMENT",
   heroSubtitle: "Unique, More and Better",
-  heroDescription: "(주)미래공간개발은 고객을 왕으로 만드는 \"KING MAKER\"로서 최고의 성공 파트너가 되어 드립니다.",
+  heroDescription: "(주)미래공간개발은 고객을 최고의 자리로 이끄는 \"KING MAKER\"로서, 가장 신뢰받는 성공 파트너가 되어 드립니다.",
   phone: "1688-9641",
   address: "서울특별시 금천구 가산디지털1로 146, 14층 1403, 1404호(가산동)",
   email: "yahc1020@naver.com",
