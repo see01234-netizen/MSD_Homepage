@@ -1,8 +1,13 @@
 
 import { Project, SiteConfig } from '../types';
-import { PROJECTS as INITIAL_PROJECTS } from '../constants';
+import {
+  getAllProjectsDB,
+  addProjectDB,
+  updateProjectDB,
+  deleteProjectDB,
+  seedInitialData,
+} from './db';
 
-const STORAGE_KEY = 'mirae_projects';
 const CONFIG_KEY = 'mirae_site_config';
 
 const DEFAULT_CONFIG: SiteConfig = {
@@ -17,38 +22,34 @@ const DEFAULT_CONFIG: SiteConfig = {
   ceoName: "임병섭, 윤용석"
 };
 
-export const getStoredProjects = (): Project[] => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_PROJECTS));
-    return INITIAL_PROJECTS;
+export const getStoredProjects = async (): Promise<Project[]> => {
+  try {
+    let projects = await getAllProjectsDB();
+    if (projects.length === 0) {
+      console.log("No projects found in DB, seeding initial data.");
+      await seedInitialData();
+      projects = await getAllProjectsDB();
+    }
+    return projects;
+  } catch (error) {
+    console.error("Failed to get projects, returning empty array:", error);
+    return [];
   }
-  return JSON.parse(stored);
 };
 
-export const saveProjects = (projects: Project[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+export const addProject = async (project: Project): Promise<Project[]> => {
+  await addProjectDB(project);
+  return await getAllProjectsDB();
 };
 
-export const addProject = (project: Project) => {
-  const projects = getStoredProjects();
-  const updated = [project, ...projects];
-  saveProjects(updated);
-  return updated;
+export const updateProject = async (project: Project): Promise<Project[]> => {
+  await updateProjectDB(project);
+  return await getAllProjectsDB();
 };
 
-export const updateProject = (index: number, project: Project) => {
-  const projects = getStoredProjects();
-  projects[index] = project;
-  saveProjects(projects);
-  return projects;
-};
-
-export const deleteProject = (index: number) => {
-  const projects = getStoredProjects();
-  const updated = projects.filter((_, i) => i !== index);
-  saveProjects(updated);
-  return updated;
+export const deleteProject = async (id: number): Promise<Project[]> => {
+  await deleteProjectDB(id);
+  return await getAllProjectsDB();
 };
 
 export const getSiteConfig = (): SiteConfig => {

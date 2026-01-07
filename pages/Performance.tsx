@@ -12,7 +12,11 @@ const Performance: React.FC = () => {
   const knownTypes = ['공동주택', '타운하우스', '지식산업센터', '오피스', '상업시설', '오피스텔'];
 
   useEffect(() => {
-    setProjects(getStoredProjects());
+    const fetchProjects = async () => {
+        const storedProjects = await getStoredProjects();
+        setProjects(storedProjects);
+    };
+    fetchProjects();
   }, []);
 
   const filteredProjects = useMemo(() => {
@@ -88,7 +92,7 @@ const Performance: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16 md:gap-y-24">
           {filteredProjects.map((project, idx) => (
             <div 
-              key={idx} 
+              key={project.id || idx} 
               onClick={() => setSelectedProject(project)}
               className="group flex flex-col cursor-pointer"
             >

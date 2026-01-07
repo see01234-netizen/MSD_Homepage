@@ -17,7 +17,6 @@ const Admin: React.FC = () => {
   // Projects State
   const [projects, setProjects] = useState<Project[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   
   // Settings State
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(getSiteConfig());
@@ -31,7 +30,11 @@ const Admin: React.FC = () => {
       navigate('/login');
       return;
     }
-    setProjects(getStoredProjects());
+    const fetchProjects = async () => {
+        const storedProjects = await getStoredProjects();
+        setProjects(storedProjects);
+    };
+    fetchProjects();
   }, [navigate]);
 
   const processFile = (file: File) => {
@@ -58,30 +61,31 @@ const Admin: React.FC = () => {
   };
 
   const openAddModal = () => {
-    setEditingIndex(null);
     setFormData({ year: '2024', month: '01', name: '', type: '공동주택', location: '', scale: '', role: '조직분양', imageUrl: '', status: '완료' });
     setIsModalOpen(true);
   };
 
-  const openEditModal = (index: number) => {
-    setEditingIndex(index);
-    setFormData({ ...projects[index] });
+  const openEditModal = (project: Project) => {
+    setFormData({ ...project });
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingIndex !== null) {
-      setProjects(updateProject(editingIndex, formData));
+    let updatedProjects;
+    if (formData.id) {
+      updatedProjects = await updateProject(formData);
     } else {
-      setProjects(addProject(formData));
+      updatedProjects = await addProject(formData);
     }
+    setProjects(updatedProjects);
     setIsModalOpen(false);
   };
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('정말로 이 실적을 삭제하시겠습니까?')) {
-      setProjects(deleteProject(index));
+      const updatedProjects = await deleteProject(id);
+      setProjects(updatedProjects);
     }
   };
 
@@ -155,8 +159,8 @@ const Admin: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-600">
-                  {projects.map((p, idx) => (
-                    <tr key={idx} className="hover:bg-gray-600/30 transition-colors">
+                  {projects.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-600/30 transition-colors">
                       <td className="px-6 py-5 text-gray-300 font-medium">{p.year}.{p.month}</td>
                       <td className="px-6 py-5 text-gray-100 font-bold">{p.name}</td>
                       <td className="px-6 py-5">
@@ -170,8 +174,8 @@ const Admin: React.FC = () => {
                       <td className="px-6 py-5 text-gray-300 text-sm truncate max-w-xs">{p.location}</td>
                       <td className="px-6 py-5">
                         <div className="flex justify-center gap-3">
-                          <button onClick={() => openEditModal(idx)} className="p-2 text-gray-400 hover:text-primary transition-colors"><Edit2 size={18} /></button>
-                          <button onClick={() => handleDelete(idx)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                          <button onClick={() => openEditModal(p)} className="p-2 text-gray-400 hover:text-primary transition-colors"><Edit2 size={18} /></button>
+                          <button onClick={() => handleDelete(p.id!)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
                         </div>
                       </td>
                     </tr>
@@ -300,7 +304,7 @@ const Admin: React.FC = () => {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
           <div className="relative bg-gray-700 w-full max-w-2xl my-8 rounded-xl shadow-2xl border border-gray-600 overflow-hidden">
             <div className="p-8 border-b border-gray-600 flex justify-between items-center bg-gray-700/50">
-              <h2 className="text-2xl font-black text-gray-100">{editingIndex !== null ? '실적 수정' : '새 실적 추가'}</h2>
+              <h2 className="text-2xl font-black text-gray-100">{formData.id ? '실적 수정' : '새 실적 추가'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
             </div>
             

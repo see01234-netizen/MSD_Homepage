@@ -1,16 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Hero from '../components/Hero';
 import ProjectModal from '../components/ProjectModal';
-import { BUSINESS_SCOPE, PROJECTS } from '../constants';
+import { BUSINESS_SCOPE } from '../constants';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Project } from '../types';
+import { getStoredProjects } from '../utils/storage';
 
 const Home: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
 
-  const recentProjects = [...PROJECTS].sort((a, b) => {
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const storedProjects = await getStoredProjects();
+      setProjects(storedProjects);
+    };
+    fetchProjects();
+  }, []);
+
+
+  const recentProjects = [...projects].sort((a, b) => {
     return parseInt(b.year + b.month) - parseInt(a.year + a.month);
   }).slice(0, 6);
 

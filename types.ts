@@ -2,6 +2,7 @@
 import React from 'react';
 
 export interface Project {
+  id?: number;
   year: string;
   month: string;
   name: string;
