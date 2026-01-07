@@ -294,7 +294,7 @@ const Admin: React.FC = () => {
         )}
       </div>
 
-      {/* Add/Edit Modal (Existing) */}
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
@@ -305,7 +305,7 @@ const Admin: React.FC = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              {/* Image Upload Area (Existing) */}
+              {/* Image Upload Area */}
               <div className="space-y-2">
                 <label className="block text-gray-300 text-xs font-bold uppercase mb-2">조감도 이미지 (파일 선택 또는 붙여넣기)</label>
                 <div 
@@ -350,6 +350,11 @@ const Admin: React.FC = () => {
                 <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-200" required />
               </div>
 
+              <div>
+                <label className="block text-gray-300 text-xs font-bold uppercase mb-2">현장위치</label>
+                <input type="text" value={formData.location || ''} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-200" />
+              </div>
+
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-300 text-xs font-bold uppercase mb-2">진행 상태</label>
@@ -361,6 +366,14 @@ const Admin: React.FC = () => {
                 <div>
                   <label className="block text-gray-300 text-xs font-bold uppercase mb-2">사업유형</label>
                   <input type="text" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-xs font-bold uppercase mb-2">사업규모</label>
+                  <input type="text" value={formData.scale || ''} onChange={e => setFormData({...formData, scale: e.target.value})} className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-xs font-bold uppercase mb-2">수행역할</label>
+                  <input type="text" value={formData.role || ''} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-200" />
                 </div>
               </div>
 
