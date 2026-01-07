@@ -1,0 +1,7 @@
+{
+  "name": "Copy of 미래공간개발 홈페이지제작",
+  "description": "The official website of Mirea Gonggan Development Co., Ltd., a leading real estate development, sales agency, and consulting firm known as the 'King Maker' of the industry.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
