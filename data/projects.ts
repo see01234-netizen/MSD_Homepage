@@ -1,9 +1,9 @@
 
 import { Project } from '../types';
 
-export const DATA_VERSION = "20240523_v7"; // 데이터 버전 업데이트
+export const DATA_VERSION = "20240523_v8"; // 데이터 버전 업데이트 (DB 자동 동기화 트리거)
 
-// 이미지 상수 정의 (재사용성 및 유지보수 용이)
+// 이미지 상수 정의
 const IMAGES = {
   knowledge: [
     "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
@@ -36,9 +36,31 @@ const IMAGES = {
 
 export const PROJECTS: Project[] = [
   // 2024
-  { year: "2024", month: "10", name: "신광교 클라우드 시티", type: "지식산업센터", location: "경기도 용인시 기흥구", scale: "연면적 104,771평", role: "조직분양", status: "진행중", imageUrl: "/images/cloud_city.png" },
+  { 
+    year: "2024", 
+    month: "10", 
+    name: "신광교 클라우드 시티", 
+    type: "지식산업센터", 
+    location: "경기도 용인시 기흥구", 
+    scale: "연면적 104,771평", 
+    role: "조직분양", 
+    status: "진행중", 
+    // Futuristic glass building for Cloud City
+    imageUrl: "https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&w=1200&q=80" 
+  },
   // 2023
-  { year: "2023", month: "05", name: "현대프리미어캠퍼스 세마역", type: "지식산업센터", location: "경기도 오산시 세교동", scale: "연면적 69,738.01평", role: "조직분양", status: "완료", imageUrl: "/images/sema_station.png" },
+  { 
+    year: "2023", 
+    month: "05", 
+    name: "현대프리미어캠퍼스 세마역", 
+    type: "지식산업센터", 
+    location: "경기도 오산시 세교동", 
+    scale: "연면적 69,738.01평", 
+    role: "조직분양", 
+    status: "완료", 
+    // Large scale modern complex for Premier Campus
+    imageUrl: "https://images.unsplash.com/photo-1462826303086-329426d1aef5?auto=format&fit=crop&w=1200&q=80" 
+  },
   // 2022
   { year: "2022", month: "12", name: "힐스테이트 선화 더와이즈", type: "공동주택", location: "대전광역시 중구 선화동", units: "851세대", role: "일반분양", status: "완료", imageUrl: IMAGES.apt[0] },
   { year: "2022", month: "04", name: "용인 경남아너스빌 디센트", type: "공동주택", location: "경기도 용인시 처인구", units: "1,164세대", role: "일반분양", status: "완료", imageUrl: IMAGES.apt[1] },
