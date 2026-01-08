@@ -16,7 +16,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { Project } from './types';
-import { PROJECTS } from './data/projects';
+import { PROJECTS, DATA_VERSION } from './data/projects';
 
 export const COLORS = {
   primary: '#C5A059', // Elegant Gold
@@ -25,7 +25,7 @@ export const COLORS = {
   darker: '#0d1117',
 };
 
-export { PROJECTS };
+export { PROJECTS, DATA_VERSION };
 
 export const PHILOSOPHY = [
   {

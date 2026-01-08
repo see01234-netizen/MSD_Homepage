@@ -1,35 +1,25 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getStoredProjects, addProject, updateProject, deleteProject, getSiteConfig, saveSiteConfig } from '../utils/storage';
-import { Project, SiteConfig } from '../types';
+import { getStoredProjects, addProject, updateProject, deleteProject, replaceAllProjects } from '../utils/storage';
+import { Project } from '../types';
 import { 
   Plus, Edit2, Trash2, Save, X, LogOut, LayoutGrid, 
-  Image as ImageIcon, Upload, Settings, List,
-  Monitor, Phone, MapPin, Mail, User, FileText, Download,
-  Github, RefreshCw, Check, Loader2
+  Image as ImageIcon, Upload, Download,
+  FileJson, Code, Loader2
 } from 'lucide-react';
 
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'projects' | 'settings'>('projects');
   
   // Projects State
   const [projects, setProjects] = useState<Project[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkJson, setBulkJson] = useState('');
   
-  // Settings State
-  const [siteConfig, setSiteConfig] = useState<SiteConfig>(getSiteConfig());
-
-  // GitHub State
-  const [githubConfig, setGithubConfig] = useState({
-    owner: '',
-    repo: '',
-    token: '',
-    path: 'data/projects.ts'
-  });
-  const [isPushing, setIsPushing] = useState(false);
+  // Image Compression State
   const [isCompressing, setIsCompressing] = useState(false);
 
   const [formData, setFormData] = useState<Project>({
@@ -46,12 +36,6 @@ const Admin: React.FC = () => {
         setProjects(storedProjects);
     };
     fetchProjects();
-    
-    // Load GitHub config
-    const savedGhConfig = localStorage.getItem('github_config');
-    if (savedGhConfig) {
-      setGithubConfig(JSON.parse(savedGhConfig));
-    }
   }, [navigate]);
 
   // Image Compression Logic
@@ -156,77 +140,32 @@ const Admin: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // GitHub Sync Functionality
-  const handleGithubPush = async () => {
-    if (!githubConfig.owner || !githubConfig.repo || !githubConfig.token) {
-      alert('GitHub 설정을 먼저 완료해주세요.');
+  // Generate projects.ts file for manual deployment
+  const handleDownloadSource = () => {
+    if (!window.confirm('현재 데이터를 기반으로 projects.ts 파일을 생성하여 다운로드하시겠습니까?\n이 파일을 프로젝트의 data/projects.ts 경로에 덮어쓰고 배포하면 사이트가 업데이트됩니다.')) {
       return;
     }
 
-    if (!window.confirm('현재 데이터를 GitHub 저장소에 백업하시겠습니까?\n이 작업은 실제 소스코드를 업데이트하며, 자동 배포가 설정된 경우 사이트가 재배포됩니다.')) {
-      return;
-    }
+    const cleanProjects = projects.map(({ id, ...rest }) => rest);
+    const timestamp = new Date().getTime();
+    
+    // Note: The structure here must match the data/projects.ts file structure
+    const fileContent = `
+import { Project } from '../types';
 
-    setIsPushing(true);
-    try {
-      // 1. Get current SHA of the file
-      const apiUrl = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${githubConfig.path}`;
-      const getResponse = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `token ${githubConfig.token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
+export const DATA_VERSION = "${timestamp}";
 
-      let sha = '';
-      if (getResponse.ok) {
-        const data = await getResponse.json();
-        sha = data.sha;
-      } else if (getResponse.status !== 404) {
-        throw new Error('GitHub에서 파일 정보를 가져오는데 실패했습니다.');
-      }
+export const PROJECTS: Project[] = ${JSON.stringify(cleanProjects, null, 2)};
+`;
 
-      // 2. Prepare new content
-      // Clean projects data (remove ID if needed, but ID is optional in type so fine)
-      const cleanProjects = projects.map(({ id, ...rest }) => rest);
-      
-      const fileContent = `import { Project } from '../types';\n\nexport const PROJECTS: Project[] = ${JSON.stringify(cleanProjects, null, 2)};\n`;
-      
-      // UTF-8 to Base64 (browser compatible)
-      const contentEncoded = window.btoa(unescape(encodeURIComponent(fileContent)));
-
-      // 3. Push (PUT)
-      const putResponse = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `token ${githubConfig.token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.github.v3+json'
-        },
-        body: JSON.stringify({
-          message: `Update project data: ${new Date().toISOString().split('T')[0]}`,
-          content: contentEncoded,
-          sha: sha || undefined
-        })
-      });
-
-      if (!putResponse.ok) {
-        const err = await putResponse.json();
-        throw new Error(err.message || 'GitHub 업데이트 실패');
-      }
-
-      alert('성공적으로 GitHub에 백업되었습니다! \n자동 배포가 설정되어 있다면 곧 사이트가 업데이트됩니다.');
-    } catch (error: any) {
-      alert(`오류 발생: ${error.message}`);
-      console.error(error);
-    } finally {
-      setIsPushing(false);
-    }
-  };
-
-  const handleSaveGithubConfig = () => {
-    localStorage.setItem('github_config', JSON.stringify(githubConfig));
-    alert('GitHub 설정이 저장되었습니다.');
+    const blob = new Blob([fileContent], { type: "text/typescript" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "projects.ts";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const openAddModal = () => {
@@ -248,6 +187,30 @@ const Admin: React.FC = () => {
   const openEditModal = (project: Project) => {
     setFormData({ ...project });
     setIsModalOpen(true);
+  };
+
+  const openBulkModal = () => {
+    // ID 제외하고 깨끗한 JSON 생성
+    const cleanProjects = projects.map(({id, ...rest}) => rest);
+    setBulkJson(JSON.stringify(cleanProjects, null, 2));
+    setIsBulkModalOpen(true);
+  };
+
+  const handleSaveBulkEdit = async () => {
+    try {
+        const parsed = JSON.parse(bulkJson);
+        if (!Array.isArray(parsed)) throw new Error("데이터는 반드시 배열 형식이어야 합니다.");
+        
+        if (!window.confirm("기존 데이터를 모두 지우고 입력한 데이터로 교체하시겠습니까? \n이 작업은 되돌릴 수 없습니다.")) return;
+
+        await replaceAllProjects(parsed);
+        const updated = await getStoredProjects();
+        setProjects(updated);
+        setIsBulkModalOpen(false);
+        alert("데이터가 성공적으로 교체되었습니다.");
+    } catch (e: any) {
+        alert("JSON 형식이 올바르지 않습니다.\n" + e.message);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -273,12 +236,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveSiteConfig(siteConfig);
-    alert('사이트 설정이 저장되었습니다.');
-  };
-
   return (
     <div className="min-h-screen bg-gray-800 pt-24 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -289,275 +246,108 @@ const Admin: React.FC = () => {
               <LayoutGrid className="text-primary" size={32} />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-gray-100 tracking-tighter uppercase">Admin Dashboard</h1>
-              <p className="text-gray-300 text-sm">실적 데이터 관리 및 웹사이트 설정</p>
+              <h1 className="text-3xl font-black text-gray-100 tracking-tighter uppercase">Project Manager</h1>
+              <p className="text-gray-300 text-sm">사업실적 데이터 관리</p>
             </div>
           </div>
           <div className="flex gap-4">
              <button 
               onClick={handleExport}
-              className="bg-gray-600 hover:bg-gray-500 text-primary font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition-all border border-gray-500"
+              className="bg-gray-600 hover:bg-gray-500 text-primary font-bold px-4 py-3 rounded-lg flex items-center gap-2 transition-all border border-gray-500 text-sm"
               title="현재 데이터 JSON 다운로드"
             >
-              <Download size={20} /> 로컬 백업
+              <Download size={18} /> 백업
             </button>
              <button 
               onClick={handleLogout}
-              className="bg-gray-600 hover:bg-red-900/50 text-gray-300 hover:text-red-400 font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition-all border border-gray-500 hover:border-red-900"
+              className="bg-gray-600 hover:bg-red-900/50 text-gray-300 hover:text-red-400 font-bold px-4 py-3 rounded-lg flex items-center gap-2 transition-all border border-gray-500 hover:border-red-900 text-sm"
             >
-              <LogOut size={20} /> 로그아웃
+              <LogOut size={18} /> 로그아웃
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex mb-8 bg-gray-700 p-1 rounded-xl border border-gray-600 w-fit">
-          <button 
-            onClick={() => setActiveTab('projects')}
-            className={`flex items-center gap-2 px-8 py-3 rounded-lg font-bold transition-all ${activeTab === 'projects' ? 'bg-primary text-black shadow-lg' : 'text-gray-300 hover:text-gray-200'}`}
-          >
-            <List size={18} /> 실적 관리
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-8 py-3 rounded-lg font-bold transition-all ${activeTab === 'settings' ? 'bg-primary text-black shadow-lg' : 'text-gray-300 hover:text-gray-200'}`}
-          >
-            <Settings size={18} /> 사이트 설정 & 배포
-          </button>
-        </div>
-
-        {activeTab === 'projects' ? (
-          <>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-100 flex items-center gap-2">
-                등록된 프로젝트 
+        {/* Action Bar */}
+        <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-4">
+                <h2 className="text-xl font-bold text-gray-100 flex items-center gap-2">
+                등록된 실적
                 <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">{projects.length}건</span>
-              </h2>
-              <button 
+                </h2>
+                
+                {/* Source Download Button - Compact */}
+                <button 
+                    onClick={handleDownloadSource}
+                    className="text-gray-400 hover:text-green-400 flex items-center gap-1 text-xs font-bold border border-gray-600 px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 transition-colors"
+                    title="소스 코드(projects.ts) 다운로드"
+                >
+                    <Code size={14} /> 소스파일 생성
+                </button>
+            </div>
+
+            <div className="flex gap-3">
+            <button 
+                onClick={openBulkModal}
+                className="bg-gray-600 hover:bg-gray-500 text-white font-bold px-5 py-2 rounded-lg flex items-center gap-2 transition-all text-sm border border-gray-500"
+            >
+                <FileJson size={18} /> 데이터 일괄 편집
+            </button>
+            <button 
                 onClick={openAddModal}
                 className="bg-primary hover:bg-yellow-300 text-black font-bold px-5 py-2 rounded-lg flex items-center gap-2 transition-all text-sm shadow-lg shadow-primary/20"
-              >
+            >
                 <Plus size={18} /> 새 실적 추가
-              </button>
+            </button>
             </div>
-            <div className="bg-gray-700 rounded-xl border border-gray-600 overflow-hidden shadow-2xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse whitespace-nowrap">
-                  <thead>
-                    <tr className="bg-gray-600/50 text-gray-300 text-xs font-bold uppercase tracking-widest">
-                      <th className="px-6 py-5">날짜</th>
-                      <th className="px-6 py-5">프로젝트명</th>
-                      <th className="px-6 py-5">상태</th>
-                      <th className="px-6 py-5">유형</th>
-                      <th className="px-6 py-5">위치</th>
-                      <th className="px-6 py-5 text-center">액션</th>
+        </div>
+
+        {/* Project List Table */}
+        <div className="bg-gray-700 rounded-xl border border-gray-600 overflow-hidden shadow-2xl mb-12">
+            <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                <tr className="bg-gray-600/50 text-gray-300 text-xs font-bold uppercase tracking-widest">
+                    <th className="px-6 py-5">날짜</th>
+                    <th className="px-6 py-5">프로젝트명</th>
+                    <th className="px-6 py-5">상태</th>
+                    <th className="px-6 py-5">유형</th>
+                    <th className="px-6 py-5">위치</th>
+                    <th className="px-6 py-5 text-center">액션</th>
+                </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-600">
+                {projects.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-600/30 transition-colors">
+                    <td className="px-6 py-5 text-gray-300 font-medium">{p.year}.{p.month}</td>
+                    <td className="px-6 py-5 text-gray-100 font-bold">{p.name}</td>
+                    <td className="px-6 py-5">
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-sm uppercase tracking-tighter ${p.status === '진행중' ? 'bg-red-900/40 text-red-400 border border-red-900/50' : 'bg-green-900/30 text-green-400 border border-green-900/30'}`}>
+                        {p.status || "완료"}
+                        </span>
+                    </td>
+                    <td className="px-6 py-5">
+                        <span className="text-primary text-xs font-bold bg-primary/10 px-3 py-1 rounded">{p.type}</span>
+                    </td>
+                    <td className="px-6 py-5 text-gray-300 text-sm truncate max-w-xs">{p.location}</td>
+                    <td className="px-6 py-5">
+                        <div className="flex justify-center gap-3">
+                        <button onClick={() => openEditModal(p)} className="p-2 text-gray-400 hover:text-primary transition-colors bg-gray-600/50 rounded hover:bg-gray-600" title="수정"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(p.id!)} className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-gray-600/50 rounded hover:bg-gray-600" title="삭제"><Trash2 size={16} /></button>
+                        </div>
+                    </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-600">
-                    {projects.map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-600/30 transition-colors">
-                        <td className="px-6 py-5 text-gray-300 font-medium">{p.year}.{p.month}</td>
-                        <td className="px-6 py-5 text-gray-100 font-bold">{p.name}</td>
-                        <td className="px-6 py-5">
-                          <span className={`text-[10px] font-black px-2 py-1 rounded-sm uppercase tracking-tighter ${p.status === '진행중' ? 'bg-red-900/40 text-red-400 border border-red-900/50' : 'bg-green-900/30 text-green-400 border border-green-900/30'}`}>
-                            {p.status || "완료"}
-                          </span>
+                ))}
+                {projects.length === 0 && (
+                    <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400 font-medium">
+                            등록된 실적이 없습니다. '새 실적 추가' 버튼을 눌러 데이터를 입력해주세요.
                         </td>
-                        <td className="px-6 py-5">
-                          <span className="text-primary text-xs font-bold bg-primary/10 px-3 py-1 rounded">{p.type}</span>
-                        </td>
-                        <td className="px-6 py-5 text-gray-300 text-sm truncate max-w-xs">{p.location}</td>
-                        <td className="px-6 py-5">
-                          <div className="flex justify-center gap-3">
-                            <button onClick={() => openEditModal(p)} className="p-2 text-gray-400 hover:text-primary transition-colors bg-gray-600/50 rounded hover:bg-gray-600" title="수정"><Edit2 size={16} /></button>
-                            <button onClick={() => handleDelete(p.id!)} className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-gray-600/50 rounded hover:bg-gray-600" title="삭제"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {projects.length === 0 && (
-                        <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center text-gray-400 font-medium">
-                                등록된 실적이 없습니다. '새 실적 추가' 버튼을 눌러 데이터를 입력해주세요.
-                            </td>
-                        </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </tr>
+                )}
+                </tbody>
+            </table>
             </div>
-          </>
-        ) : (
-          <div className="space-y-10">
-             {/* GitHub Settings & Push */}
-             <div className="bg-gray-700 p-10 rounded-xl border border-gray-600 shadow-xl">
-                <h3 className="text-lg font-black text-primary flex items-center gap-2 border-b border-gray-600 pb-3 uppercase tracking-tighter mb-6">
-                   <Github size={20} /> GitHub 자동 백업 및 배포 설정
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className="block text-gray-300 text-xs font-bold uppercase mb-2">GitHub 아이디 (Owner)</label>
-                      <input 
-                        type="text" 
-                        value={githubConfig.owner}
-                        onChange={(e) => setGithubConfig({...githubConfig, owner: e.target.value})}
-                        placeholder="예: username"
-                        className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-300 text-xs font-bold uppercase mb-2">저장소 이름 (Repo)</label>
-                      <input 
-                        type="text" 
-                        value={githubConfig.repo}
-                        onChange={(e) => setGithubConfig({...githubConfig, repo: e.target.value})}
-                        placeholder="예: project-name"
-                        className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-gray-300 text-xs font-bold uppercase mb-2">Personal Access Token (Repo 권한 필요)</label>
-                      <input 
-                        type="password" 
-                        value={githubConfig.token}
-                        onChange={(e) => setGithubConfig({...githubConfig, token: e.target.value})}
-                        placeholder="ghp_..."
-                        className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                      />
-                      <p className="text-[10px] text-gray-400 mt-2">* 이 토큰은 브라우저에만 저장되며 서버로 전송되지 않습니다.</p>
-                    </div>
-                </div>
-                <div className="flex gap-4 border-t border-gray-600 pt-6">
-                    <button 
-                      onClick={handleSaveGithubConfig}
-                      className="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold rounded flex items-center gap-2"
-                    >
-                      <Save size={16} /> 설정 저장
-                    </button>
-                    <button 
-                      onClick={handleGithubPush}
-                      disabled={isPushing}
-                      className={`flex-1 px-6 py-3 font-bold rounded flex items-center justify-center gap-2 transition-all ${isPushing ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white'}`}
-                    >
-                      {isPushing ? <RefreshCw className="animate-spin" size={20} /> : <Github size={20} />}
-                      {isPushing ? '백업 진행중...' : 'GitHub에 데이터 백업 및 배포하기'}
-                    </button>
-                </div>
-             </div>
-
-             {/* Site General Settings */}
-             <form onSubmit={handleSaveConfig} className="bg-gray-700 p-10 rounded-xl border border-gray-600 shadow-xl">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {/* Hero Settings */}
-                  <div className="space-y-6">
-                     <h3 className="text-lg font-black text-primary flex items-center gap-2 border-b border-gray-600 pb-3 uppercase tracking-tighter">
-                        <Monitor size={20} /> 메인 히어로 섹션
-                     </h3>
-                     <div>
-                       <label className="block text-gray-300 text-xs font-bold uppercase mb-2">메인 타이틀 (상단 소제목)</label>
-                       <input 
-                         type="text" 
-                         value={siteConfig.heroSubtitle} 
-                         onChange={e => setSiteConfig({...siteConfig, heroSubtitle: e.target.value})} 
-                         className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                       />
-                     </div>
-                     <div>
-                       <label className="block text-gray-300 text-xs font-bold uppercase mb-2">대형 헤드라인 (중앙)</label>
-                       <textarea 
-                         rows={2}
-                         value={siteConfig.heroTitle} 
-                         onChange={e => setSiteConfig({...siteConfig, heroTitle: e.target.value})} 
-                         className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                       />
-                     </div>
-                     <div>
-                       <label className="block text-gray-300 text-xs font-bold uppercase mb-2">상세 설명 (하단)</label>
-                       <textarea 
-                         rows={3}
-                         value={siteConfig.heroDescription} 
-                         onChange={e => setSiteConfig({...siteConfig, heroDescription: e.target.value})} 
-                         className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                       />
-                     </div>
-                  </div>
-
-                  {/* Company Info */}
-                  <div className="space-y-6">
-                     <h3 className="text-lg font-black text-primary flex items-center gap-2 border-b border-gray-600 pb-3 uppercase tracking-tighter">
-                        <FileText size={20} /> 회사 정보 및 연락처
-                     </h3>
-                     <div>
-                       <label className="block text-gray-300 text-xs font-bold uppercase mb-2">회사명</label>
-                       <input 
-                         type="text" 
-                         value={siteConfig.companyName} 
-                         onChange={e => setSiteConfig({...siteConfig, companyName: e.target.value})} 
-                         className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                       />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-gray-300 text-xs font-bold uppercase mb-2">대표 번호</label>
-                          <input 
-                            type="text" 
-                            value={siteConfig.phone} 
-                            onChange={e => setSiteConfig({...siteConfig, phone: e.target.value})} 
-                            className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-gray-300 text-xs font-bold uppercase mb-2">대표자명</label>
-                          <input 
-                            type="text" 
-                            value={siteConfig.ceoName} 
-                            onChange={e => setSiteConfig({...siteConfig, ceoName: e.target.value})} 
-                            className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                          />
-                        </div>
-                     </div>
-                     <div>
-                       <label className="block text-gray-300 text-xs font-bold uppercase mb-2">이메일</label>
-                       <input 
-                         type="text" 
-                         value={siteConfig.email} 
-                         onChange={e => setSiteConfig({...siteConfig, email: e.target.value})} 
-                         className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                       />
-                     </div>
-                     <div>
-                       <label className="block text-gray-300 text-xs font-bold uppercase mb-2">사업자 등록번호</label>
-                       <input 
-                         type="text" 
-                         value={siteConfig.businessNumber} 
-                         onChange={e => setSiteConfig({...siteConfig, businessNumber: e.target.value})} 
-                         className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                       />
-                     </div>
-                  </div>
-               </div>
-
-               <div className="pt-6 border-t border-gray-600 mt-6">
-                  <label className="block text-gray-300 text-xs font-bold uppercase mb-2">본사 주소</label>
-                  <input 
-                    type="text" 
-                    value={siteConfig.address} 
-                    onChange={e => setSiteConfig({...siteConfig, address: e.target.value})} 
-                    className="w-full bg-gray-600 border border-gray-500 p-3 rounded text-gray-100 focus:border-primary focus:outline-none"
-                  />
-               </div>
-
-               <div className="flex justify-end mt-8">
-                  <button 
-                    type="submit"
-                    className="bg-primary hover:bg-yellow-300 text-black font-black px-10 py-4 rounded-lg flex items-center gap-2 transition-all transform hover:scale-[1.02] shadow-lg shadow-primary/20"
-                  >
-                    <Save size={20} /> 사이트 설정 저장하기
-                  </button>
-               </div>
-            </form>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Add/Edit Modal */}
@@ -658,6 +448,52 @@ const Admin: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Edit Modal */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsBulkModalOpen(false)}></div>
+          <div className="relative bg-gray-700 w-full max-w-4xl h-[80vh] my-8 rounded-xl shadow-2xl border border-gray-600 flex flex-col">
+            <div className="p-6 border-b border-gray-600 flex justify-between items-center bg-gray-700/50">
+              <div className="flex items-center gap-3">
+                 <FileJson className="text-primary" size={24} />
+                 <div>
+                    <h2 className="text-xl font-black text-gray-100">실적 데이터 일괄 편집 (JSON)</h2>
+                    <p className="text-xs text-gray-400">데이터를 텍스트로 직접 수정하거나, 외부 데이터를 붙여넣을 수 있습니다.</p>
+                 </div>
+              </div>
+              <button onClick={() => setIsBulkModalOpen(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            </div>
+            
+            <div className="flex-grow p-6 bg-gray-800">
+                <textarea 
+                    className="w-full h-full bg-gray-900 border border-gray-600 text-gray-200 font-mono text-sm p-4 rounded focus:border-primary focus:outline-none resize-none"
+                    value={bulkJson}
+                    onChange={(e) => setBulkJson(e.target.value)}
+                    spellCheck={false}
+                />
+            </div>
+            
+            <div className="p-6 border-t border-gray-600 bg-gray-700 flex justify-end gap-4 items-center">
+                <span className="text-xs text-yellow-400 font-bold mr-auto">
+                    * 주의: 저장 시 기존 데이터가 모두 삭제되고 입력한 데이터로 대체됩니다.
+                </span>
+                <button 
+                    onClick={() => setIsBulkModalOpen(false)}
+                    className="px-6 py-3 text-gray-300 hover:text-white font-bold"
+                >
+                    취소
+                </button>
+                <button 
+                    onClick={handleSaveBulkEdit}
+                    className="bg-primary hover:bg-yellow-300 text-black font-black px-8 py-3 rounded flex items-center gap-2"
+                >
+                    <Save size={18} /> DB에 저장 (Apply)
+                </button>
+            </div>
           </div>
         </div>
       )}

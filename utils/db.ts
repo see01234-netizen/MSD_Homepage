@@ -1,3 +1,4 @@
+
 import { Project } from '../types';
 import { PROJECTS as INITIAL_PROJECTS } from '../constants';
 
@@ -143,5 +144,32 @@ export const deleteProjectDB = async (id: number): Promise<void> => {
       console.error('Error deleting project:', request.error);
       reject('Error deleting project');
     };
+  });
+};
+
+// Replace all projects (Bulk Update)
+export const replaceAllProjectsDB = async (projects: Project[]): Promise<void> => {
+  const db = await initDB();
+  const transaction = db.transaction(STORE_NAME, 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+
+  return new Promise((resolve, reject) => {
+    const clearRequest = store.clear();
+    clearRequest.onsuccess = () => {
+      projects.forEach(p => {
+        // Remove ID to let DB auto-increment and avoid key conflict
+        const { id, ...data } = p;
+        store.add(data);
+      });
+      resolve();
+    };
+    clearRequest.onerror = (event) => {
+      console.error('Error clearing store for replacement:', clearRequest.error);
+      reject('Error clearing store');
+    };
+    transaction.oncomplete = () => {
+        resolve();
+    }
+    transaction.onerror = () => reject(transaction.error);
   });
 };

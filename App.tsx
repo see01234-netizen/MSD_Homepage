@@ -1,4 +1,5 @@
-import React, { useEffect, Component, ErrorInfo, ReactNode } from 'react';
+
+import React, { useEffect, ErrorInfo, ReactNode } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar.tsx';
 import Footer from './components/Footer.tsx';
@@ -22,7 +23,7 @@ const ScrollToTop = () => {
 };
 
 interface ErrorBoundaryProps {
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -31,7 +32,7 @@ interface ErrorBoundaryState {
 }
 
 // Simple Error Boundary to catch render errors
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = {
     hasError: false,
     error: null
