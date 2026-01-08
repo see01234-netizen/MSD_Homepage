@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { getStoredProjects } from '../utils/storage';
 import { Project } from '../types';
@@ -57,7 +58,7 @@ const Performance: React.FC = () => {
             <div className="space-y-1">
               <h2 className="text-sm md:text-xl lg:text-2xl font-bold text-gray-400 tracking-tighter uppercase">BUSINESS RESULT</h2>
               <h3 className="text-xl md:text-3xl lg:text-4xl font-black text-gray-100 tracking-tighter leading-none uppercase break-keep">
-                ACHIEVEMENT OF <span className="text-primary">{filter === '전체보기' ? '2009~25' : filter}</span>
+                ACHIEVEMENT OF <span className="text-primary">{filter === '전체보기' ? '2009~ing' : filter}</span>
               </h3>
             </div>
           </div>
